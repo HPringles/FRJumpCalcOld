@@ -24,7 +24,21 @@ ws.on('open', () => {
 
 function getSysInfo (sys) {
     return new Promise((resolve, reject) => {
-        sys = encodeURI(sys.toUpperCase())
+        try {
+            sys = encodeURI(sys.toUpperCase())
+        } catch(err) {
+            sysInfo = {
+
+                x: undefined,
+                y: undefined,
+                z: undefined,
+                found: false
+            }
+
+            resolve(sysInfo)
+        }
+
+
 
             request("https://system.api.fuelrats.com/systems?filter[name:eq]=" + sys + "&include=bodies.stations", {json: true}, (err, res, body) => {
                 if (err) {reject(err)}
@@ -102,6 +116,7 @@ angular.module('FRJump', [])
 
         ws.on('message', (data) => {
             if (connected === false) {
+
                 console.log("connection established")
                 connected = true
             } else {
@@ -109,6 +124,11 @@ angular.module('FRJump', [])
                 let caseData = {}
 
                 if (jsonData.meta.event === "rescueUpdated") {
+
+
+
+
+
                     caseData = {
                         caseID: jsonData.data[0].id,
                         clientNick: jsonData.data[0].attributes.data.IRCNick,
@@ -120,48 +140,31 @@ angular.module('FRJump', [])
                         systemDefined: undefined
 
                     }
-
-                    getSysInfo(caseData.clientSystem).then((response) => {
-                        if (!response.found){
-                            console.log("no found")
-                            caseData.systemDefined = false
-
-                            let caseIndex = $scope.cases.findIndex((obj) => {
-                                if (obj.caseID === caseData.caseID){
-                                    return true
-                                }
-                            })
-
-                            if (caseIndex === -1){
-                                $timeout(() => {
-                                    $scope.cases.push(caseData)
-                                });
-                            } else {
-                                $timeout(() => {
-                                    $scope.cases[caseIndex] = caseData
-                                });
+                    console.log(jsonData)
+                    if (jsonData.data[0].attributes.status !== "open") {
+                        console.log("here")
+                        let caseIndex = $scope.cases.findIndex((obj) => {
+                            if (obj.caseID === caseData.caseID){
+                                return true
                             }
+                        })
 
+                        console.log(caseIndex)
 
+                        if (caseIndex !== -1){
+                            $timeout(() => {
+                                $scope.cases.splice(caseIndex, 1)
 
+                            });
+                        }
 
-                        } else {
-                            let clientSys = response
-
-                            getSysInfo($scope.ratSystem).then((response) => {
-                                if (!response.found){
-                                    caseData.systemDefined = false
-                                } else {
-                                    let ratSys = response
-
-                                    let distanceAndJumps = calculateJumpsAndDistance(ratSys, clientSys, $scope.jumpRange)
-
-                                    caseData.distance = distanceAndJumps.distance
-                                    caseData.jumps = distanceAndJumps.jumps
-                                }
+                    } else {
+                        getSysInfo(caseData.clientSystem).then((response) => {
+                            if (!response.found){
+                                console.log("no found")
+                                caseData.systemDefined = false
 
                                 let caseIndex = $scope.cases.findIndex((obj) => {
-                                    console.log(obj)
                                     if (obj.caseID === caseData.caseID){
                                         return true
                                     }
@@ -176,16 +179,54 @@ angular.module('FRJump', [])
                                         $scope.cases[caseIndex] = caseData
                                     });
                                 }
-                            })
-                        }
 
 
 
-                    }, (error) => {
 
-                        console.log(error)
+                            } else {
+                                let clientSys = response
 
-                    })
+                                getSysInfo($scope.ratSystem).then((response) => {
+                                    if (!response.found){
+                                        caseData.systemDefined = false
+                                    } else {
+                                        let ratSys = response
+
+                                        let distanceAndJumps = calculateJumpsAndDistance(ratSys, clientSys, $scope.jumpRange)
+
+                                        caseData.distance = distanceAndJumps.distance
+                                        caseData.jumps = distanceAndJumps.jumps
+                                    }
+
+                                    let caseIndex = $scope.cases.findIndex((obj) => {
+                                        console.log(obj)
+                                        if (obj.caseID === caseData.caseID){
+                                            return true
+                                        }
+                                    })
+
+                                    if (caseIndex === -1){
+                                        $timeout(() => {
+                                            $scope.cases.push(caseData)
+                                        });
+                                    } else {
+                                        $timeout(() => {
+                                            $scope.cases[caseIndex] = caseData
+                                        });
+                                    }
+                                })
+                            }
+
+
+
+                        }, (error) => {
+
+                            console.log(error)
+
+                        })
+
+                    }
+
 
                 }
             }

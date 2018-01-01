@@ -14,11 +14,11 @@
   "author": "HPringles",
   "license": "ISC",
   "devDependencies": {
-    "babel-cli": "^6.26.0"
+    "babel-cli": "^6.26.0",
+    "electron": "^1.7.10"
   },
   "dependencies": {
     "ed-logwatcher": "^1.4.0",
-    "electron": "^1.7.10",
     "request": "^2.83.0",
     "ws": "^3.3.3"
   }
