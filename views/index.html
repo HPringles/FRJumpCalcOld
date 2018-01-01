@@ -12,16 +12,17 @@
 
     <div>
         <label for="jump-range">Jump Range: </label>
-        <input type="number" ng-model="jumpRange" id="jump-range">
+        <input type="number" ngMin="1" ng-model="jumpRange" ng-change="reCalcJumps()" id="jump-range">
         <p><strong>Current System: </strong><span ng-bind="ratSystem"></span></p>
     </div>
     <ul>
-        <li ng-repeat="case in cases">
-            <p><strong>Board Index: </strong>#{{case.boardIndex}}</p>
+        <li ng-repeat="case in cases track by $index">
+            <p><strong>Board Index: </strong>#{{case.boardIndex}}<span ng-if="case.platformUnknown === true"><strong>  WARNING: PLATFORM UNKNOWN</strong></span></p>
             <p><strong>Client Name: </strong>{{case.clientNick}}</p>
             <p><strong>Client System: </strong>{{case.clientSystem}}</p>
             <p><strong>Distance To Client:  </strong>{{case.distance}}</p>
             <p><strong>Jumps To Client: </strong>{{case.jumps}}</p>
+            <p><strong>Case Red: </strong><span>{{case.caseRed}}</span></p>
         </li>
     </ul>
 
