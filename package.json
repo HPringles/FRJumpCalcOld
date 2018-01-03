@@ -1,25 +1,43 @@
 {
   "name": "frjump",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "productName": "Fuel Rats Jump Calculator",
   "description": "fuel rats case jump calculator",
   "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "package-win": "electron-packager . --overwrite --asar --platform=win32 --arch=ia32 --prune=true --out=release-builds --version-string.CompanyName=FR --version-string.FileDescription=FR --version-string.ProductName=\"Fuel Rats Jump Calculator\"",
+    "create-installer-win": "node installers/createinstaller.js"
   },
   "keywords": [
     "fuelrats",
     "jump",
     "calculator"
   ],
+  "directories": {
+    "buildResources": [
+      "public",
+      "views"
+    ]
+  },
+  "files": [
+    "*.js",
+    "views",
+    "public",
+    "node_modules"
+  ],
   "author": "HPringles",
   "license": "ISC",
   "devDependencies": {
     "babel-cli": "^6.26.0",
-    "electron": "^1.7.10"
+    "electron": "^1.7.10",
+    "electron-winstaller": "^2.6.3"
   },
   "dependencies": {
     "ed-logwatcher": "^1.4.0",
+    "electron-config": "^1.0.0",
+    "electron-debug": "^1.4.0",
     "request": "^2.83.0",
+    "windows-shortcuts": "^0.1.6",
     "ws": "^3.3.3"
   }
 }

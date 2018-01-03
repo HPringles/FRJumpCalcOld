@@ -1,5 +1,21 @@
 const WebSocket = require("ws")
 const request = require("request")
+const Config = require('electron-config')
+const config = new Config()
+let wsURL = ''
+
+if (config.has('dev')) {
+    if (config.get('dev') === true) {
+        wsURL = 'wss://dev.api.fuelrats.com'
+    } else {
+        wsURL = 'wss://api.fuelrats.com'
+    }
+
+} else {
+    wsURL = 'wss://api.fuelrats.com'
+}
+
+
 const {LogWatcher} = require("ed-logwatcher")
 const DEFAULT_SAVE_DIR = require("path").join(
     require('os').homedir(),
@@ -10,7 +26,7 @@ const DEFAULT_SAVE_DIR = require("path").join(
 
 
 
-const ws = new WebSocket('wss://dev.api.fuelrats.com');
+const ws = new WebSocket(wsURL);
 const watcher = new LogWatcher(DEFAULT_SAVE_DIR, 3)
 
 // const sysApi = require("./systemApiHandler")
@@ -94,12 +110,12 @@ function calculateJumpsAndDistance(currentSys, targetSys, jumpRange) {
 angular.module('FRJump', [])
     .controller('frjController', ($scope, $timeout) => {
         $scope.cases = []
-        $scope.jumpRange = 20
+        $scope.jumpRange = config.get('jumpRange', 20)
         $scope.ratSystem = ""
 
         watcher.on('data', obs => {
             obs.forEach(ob => {
-                if (ob.event === "FSDJump"){
+                if (ob.event === "FSDJump") {
                     $timeout(() => {
                         $scope.ratSystem = ob.StarSystem
                     });
@@ -108,10 +124,17 @@ angular.module('FRJump', [])
         })
 
         $scope.reCalcJumps = () => {
-            if ($scope.jumpRange <= 0) {$scope.jumpRange = 1}
+            if ($scope.jumpRange <= 0) {
+                $scope.jumpRange = 1
+            }
+
+            config.set('jumpRange', $scope.jumpRange)
 
             $scope.cases.forEach((caseData) => {
-                caseData.jumps = Math.ceil(caseData.distance/$scope.jumpRange)
+                if (caseData.systemDefined === true) {
+                    caseData.jumps = Math.ceil(caseData.distance / $scope.jumpRange)
+                }
+
             })
         }
 
@@ -123,18 +146,27 @@ angular.module('FRJump', [])
                 connected = true
             } else {
                 jsonData = JSON.parse(data);
+                console.log(jsonData.meta)
 
+                if (jsonData.meta.event === "rescueUpdated" || jsonData.meta.event === "rescueRead" || jsonData.meta.event === "rescueCreated") {
 
-                if (jsonData.meta.event === "rescueUpdated"|| jsonData.meta.event === "rescueRead") {
-
-
+                    if (jsonData.meta.event === "rescueCreated") {
+                        let jsonDataStore = jsonData.data
+                        jsonData.data = []
+                        jsonData.data[0] = jsonDataStore
+                        console.log(jsonData.data)
+                        console.log("sucess")
+                    }
                     for (let index = 0; index < jsonData.data.length; index++) {
+                        let caseJsonData = jsonData.data[index]
+
+
                         let caseData = {
-                            caseID: jsonData.data[index].id,
-                            clientNick: jsonData.data[index].attributes.data.IRCNick,
-                            codeRed: jsonData.data[index].attributes.codeRed,
-                            boardIndex: jsonData.data[index].attributes.data.boardIndex,
-                            clientSystem: jsonData.data[index].attributes.system,
+                            caseID: caseJsonData.id,
+                            clientNick: caseJsonData.attributes.data.IRCNick,
+                            codeRed: caseJsonData.attributes.codeRed,
+                            boardIndex: caseJsonData.attributes.data.boardIndex,
+                            clientSystem: caseJsonData.attributes.system,
                             caseRed: undefined,
                             numJumps: undefined,
                             distance: undefined,
@@ -143,31 +175,44 @@ angular.module('FRJump', [])
 
                         }
 
-                        if (jsonData.data[index].attributes.platform !== 'pc' && jsonData.data[index].attributes.platform !== null){
+                        if (caseJsonData.attributes.platform !== 'pc' && caseJsonData.attributes.platform !== null) {
+                            let caseIndex = $scope.cases.findIndex((obj) => {
+                                console.log(obj)
+                                if (obj.caseID === caseData.caseID) {
+                                    return true
+                                }
+                            })
+
+                            if (caseIndex !== -1) {
+                                $timeout(() => {
+                                    $scope.cases.splice(caseIndex, 1)
+                                });
+                            }
+
                             continue
                         }
 
-                        if (jsonData.data[index].attributes.platform === null) {
+                        if (caseJsonData.attributes.platform === null) {
                             caseData.platformUnknown = true
                         }
 
-                        if (jsonData.data[index].attributes.codeRed) {
+                        if (caseJsonData.attributes.codeRed) {
                             caseData.caseRed = "Yes"
                         } else {
                             caseData.caseRed = "No"
                         }
                         console.log(jsonData)
-                        if (jsonData.data[index].attributes.status !== "open") {
+                        if (caseJsonData.attributes.status !== "open") {
                             console.log("here")
                             let caseIndex = $scope.cases.findIndex((obj) => {
-                                if (obj.caseID === caseData.caseID){
+                                if (obj.caseID === caseData.caseID) {
                                     return true
                                 }
                             })
 
                             console.log(caseIndex)
 
-                            if (caseIndex !== -1){
+                            if (caseIndex !== -1) {
                                 $timeout(() => {
                                     $scope.cases.splice(caseIndex, 1)
 
@@ -176,17 +221,17 @@ angular.module('FRJump', [])
 
                         } else {
                             getSysInfo(caseData.clientSystem).then((response) => {
-                                if (!response.found){
+                                if (!response.found) {
                                     console.log("no found")
                                     caseData.systemDefined = false
 
                                     let caseIndex = $scope.cases.findIndex((obj) => {
-                                        if (obj.caseID === caseData.caseID){
+                                        if (obj.caseID === caseData.caseID) {
                                             return true
                                         }
                                     })
 
-                                    if (caseIndex === -1){
+                                    if (caseIndex === -1) {
                                         $timeout(() => {
                                             $scope.cases.push(caseData)
                                         });
@@ -197,13 +242,11 @@ angular.module('FRJump', [])
                                     }
 
 
-
-
                                 } else {
                                     let clientSys = response
 
                                     getSysInfo($scope.ratSystem).then((response) => {
-                                        if (!response.found){
+                                        if (!response.found) {
                                             caseData.systemDefined = false
                                         } else {
                                             let ratSys = response
@@ -213,15 +256,15 @@ angular.module('FRJump', [])
                                             caseData.distance = distanceAndJumps.distance
                                             caseData.jumps = distanceAndJumps.jumps
                                         }
-
+                                        caseData.systemDefined = true
                                         let caseIndex = $scope.cases.findIndex((obj) => {
                                             console.log(obj)
-                                            if (obj.caseID === caseData.caseID){
+                                            if (obj.caseID === caseData.caseID) {
                                                 return true
                                             }
                                         })
 
-                                        if (caseIndex === -1){
+                                        if (caseIndex === -1) {
                                             $timeout(() => {
                                                 $scope.cases.push(caseData)
                                             });
@@ -234,7 +277,6 @@ angular.module('FRJump', [])
                                 }
 
 
-
                             }, (error) => {
 
                                 console.log(error)
@@ -245,10 +287,7 @@ angular.module('FRJump', [])
                     }
 
 
-
-
-
                 }
             }
         })
-    });
+    })
